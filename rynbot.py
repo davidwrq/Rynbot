@@ -15,6 +15,8 @@ bot.
 
 import logging
 
+import requests
+from bs4 import BeautifulSoup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 from utils import get_secret
@@ -49,6 +51,14 @@ def error(bot, update, error):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, error)
 
+def ufc(bot, update):
+    ufc_info = {}
+    page = requests.get("http://www.ufcespanol.com/")
+    soup = BeautifulSoup(page.content, 'html.parser')
+    info = soup.find(id="fightcardtab0").
+    info_tittle = info.find_all('a', href=True)
+    ufc_info['tittle'] = "{} - {} - {} ".format(info_tittle[0].text, info_tittle[1].text.strip(), info_tittle[2].text)
+    pass
 
 def main():
     """Start the bot."""
@@ -61,7 +71,7 @@ def main():
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
-
+    dp.add_handler(CommandHandler("ufc", ufc))
     # on noncommand i.e message - echo the message on Telegram
     dp.add_handler(MessageHandler(Filters.text, echo))
 
