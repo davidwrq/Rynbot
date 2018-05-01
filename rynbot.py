@@ -15,6 +15,8 @@ bot.
 
 import logging
 
+import requests
+from bs4 import BeautifulSoup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 from utils import get_secret
@@ -22,8 +24,9 @@ from utils import get_secret
 SECRET_KEY = get_secret('TOKEN')
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +53,33 @@ def error(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 
+def next_ufc_fight(bot, update):
+    ufc_info = {}
+    page = requests.get("http://www.ufcespanol.com/")
+    soup = BeautifulSoup(page.content, 'html.parser')
+    info = soup.find(id="fightcardtab0")
+    info_tittle = info.find_all('a', href=True)
+    ufc_info['tittle'] = "{} - {} - {} ".format(
+        info_tittle[0].text, info_tittle[1].text.strip(), info_tittle[2].text)
+    ufc_info['main_event'] = "{}".format(
+        info.find_all(class_="main-event")[0].text.replace('\n', " ").strip())
+    cards = {}
+    div_card = info.find(
+        class_="card-fights card-layout-2 LayoutA").find_all("div", "card")
+    for card_fight in div_card:
+        card_title = card_fight.find(class_="fight-card-title").text.strip()
+        fights = card_fight.find_all(class_="fight")
+        fights_list = []
+        for fight in fights:
+            fights_list.append('{} - vs - {}'.format(
+                fight.find(class_="fighter-name1").text, fight.find(
+                    class_="fighter-name2").text))
+        cards[card_title] = fights_list
+    ufc_info['fights'] = cards
+
+    update.message.reply_text(ufc_info)
+
+
 def main():
     """Start the bot."""
     # Create the EventHandler and pass it your bot's token.
@@ -61,7 +91,7 @@ def main():
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
-
+    dp.add_handler(CommandHandler("next_ufc_fight", next_ufc_fight))
     # on noncommand i.e message - echo the message on Telegram
     dp.add_handler(MessageHandler(Filters.text, echo))
 
